@@ -107,8 +107,8 @@ calcImplDensity <- function(date, term) {
   var<--1
   
   while(var < 0) {
-    date<-"2006-01-31"
-    term<-12
+    #date<-"2006-01-31"
+    #term<-12
     #Table of options that are used to fit the SVI curve (i.e. all options that match a given t and T (but have different Strikes))
     optionsToFit<-raw[raw$ValuationDate == date, ]
     optionsToFit<-optionsToFit[optionsToFit$Term == term, ]
@@ -157,6 +157,11 @@ calcImplDensity <- function(date, term) {
       res<-log(ST/optionsToFit$Forward[1])*implDensityScaled(ST)
       return(res)
     } 
+    
+    returnImplDensitySquared = function(ST) {
+      res<-log(ST/optionsToFit$Forward[1])^2*implDensityScaled(ST)
+      return(res)
+    } 
     #returnImplDensity = function(r) {return(returnImplDensityUnscaled(r)/integrate(returnImplDensityUnscaled, lower=lIntegrBound,upper=uIntegrBound)$value)}
       
     #curve(implDensity, from=lIntegrBound, to=5000, xlab="R", ylab="Implied Density")
@@ -167,7 +172,7 @@ calcImplDensity <- function(date, term) {
     mean = tryCatch(integrate(function(x) {return(returnImplDensity(x))}, lIntegrBound, uIntegrBound), error = function(e) e)
     if(inherits(mean, "error")) next
       
-    varHelp = tryCatch(integrate(function(x) {return(returnImplDensity(x)^2)}, lIntegrBound, uIntegrBound), error = function(e) e)
+    varHelp = tryCatch(integrate(function(x) {return(returnImplDensitySquared(x))}, lIntegrBound, uIntegrBound), error = function(e) e)
     if(inherits(varHelp, "error")) next
     
     mean = mean$value
@@ -284,20 +289,32 @@ for(date in t) {
   varTTM12vec<-c(varTTM12vec, res[2])
 }
 
-meanTTM12vec<-c(meanTTM12vec, 0)
-varTTM12vec<-c(varTTM12vec, 0)
+varTTM12vecSCALED<-vector()
+
+#meanTTM12vec<-c(meanTTM12vec, 0)
+#varTTM12vec<-c(varTTM12vec, 0)
 
 for(i in 1:48) {
-  varTTM12vec[i] = varTTM12vec[i]*100
+  varTTM12vecSCALED[i] = varTTM12vec[i]*2
 }
 
 TTM12frame<-data.frame(t, VIX, meanTTM12vec, varTTM12vec)
 ggplot(TTM12frame, aes(t,y = value, color = variable)) + 
-  geom_point(aes(y = VIX, col = "VIX")) +
-  geom_point(aes(y = meanTTM12vec, col = "mean")) +
-  geom_point(aes(y = varTTM12vec, col = "var")) 
+  geom_point(aes(y = VIX, col = "VIX")) + 
+  geom_point(aes(y = meanTTM12vec, col = "mean")) + 
+  geom_point(aes(y = varTTM12vec, col = "var")) +
+  geom_smooth(aes(y = VIX, col = "VIX")) +
+  geom_smooth(aes(y = meanTTM12vec, col = "mean")) + 
+  geom_smooth(aes(y = varTTM12vec, col = "var")) 
 
-
+TTM12frameSCALED<-data.frame(t, VIX, meanTTM12vec, varTTM12vecSCALED)
+ggplot(TTM12frame, aes(t,y = value, color = variable)) + 
+  geom_point(aes(y = VIX, col = "VIX")) + 
+  geom_point(aes(y = meanTTM12vec, col = "mean")) + 
+  geom_point(aes(y = varTTM12vecSCALED, col = "var")) +
+  geom_smooth(aes(y = VIX, col = "VIX")) +
+  geom_smooth(aes(y = meanTTM12vec, col = "mean")) + 
+  geom_smooth(aes(y = varTTM12vecSCALED, col = "var")) 
 ################  Q13  ################  
 
 varmatrix<-matrix(nrow=48, ncol=0)
