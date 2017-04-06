@@ -107,14 +107,13 @@ calcImplDensity <- function(date, term) {
   var<--1
   
   while(var < 0) {
-    #date<-"2006-01-31"
-    #term<-12
+    date<-"2006-01-31"
+    term<-12
     #Table of options that are used to fit the SVI curve (i.e. all options that match a given t and T (but have different Strikes))
     optionsToFit<-raw[raw$ValuationDate == date, ]
     optionsToFit<-optionsToFit[optionsToFit$Term == term, ]
     
-    
-    #TODO: uIntegrBound = Inf does not work
+    lIntegrBound <- 100
     uIntegrBound <- 10000
     
     #TODO: Bug: the calculated var is sometimes negative. Repeat calcuation if that is the case until var is positive.
@@ -149,27 +148,26 @@ calcImplDensity <- function(date, term) {
     }
     #curve(implDensity, from=0.5, to=5000, xlab="K", ylab="Implied Density")
     
-    integral = tryCatch(integrate(implDensity, lower = 0.5 + 1, upper = 10000), error = function(e) e)  
+    integral = tryCatch(integrate(implDensity, lower = lIntegrBound, upper = 10000), error = function(e) e)  
     if(inherits(integral, "error")) next
     
     implDensityScaled = function(K) {return(implDensity(K) / integral$value)}
     
-    
     returnImplDensity = function(ST) {
-      res<-log(ST/optionsToFit$Forward[1])*implDensity(ST)
+      res<-log(ST/optionsToFit$Forward[1])*implDensityScaled(ST)
       return(res)
     } 
     #returnImplDensity = function(r) {return(returnImplDensityUnscaled(r)/integrate(returnImplDensityUnscaled, lower=lIntegrBound,upper=uIntegrBound)$value)}
       
-    #curve(returnImplDensity, from=lIntegrBound, to=3, xlab="R", ylab="Implied Density")
-    #curve(returnImplDensityUnscaled, from=0.5, to=5000, xlab="R", ylab="Implied Log Returns")
+    #curve(implDensity, from=lIntegrBound, to=5000, xlab="R", ylab="Implied Density")
+    #curve(implDensityScaled, from=lIntegrBound, to=5000, xlab="R", ylab="Implied Log Returns")
       
       
     #calculate the mean of the function by integration, and the var by using the usual formula
-    mean = tryCatch(integrate(function(x) {return(returnImplDensity(x))}, 0.5, 10000), error = function(e) e)
+    mean = tryCatch(integrate(function(x) {return(returnImplDensity(x))}, lIntegrBound, uIntegrBound), error = function(e) e)
     if(inherits(mean, "error")) next
       
-    varHelp = tryCatch(integrate(function(x) {return(returnImplDensity(x)^2)}, 0.5, 10000), error = function(e) e)
+    varHelp = tryCatch(integrate(function(x) {return(returnImplDensity(x)^2)}, lIntegrBound, uIntegrBound), error = function(e) e)
     if(inherits(varHelp, "error")) next
     
     mean = mean$value
