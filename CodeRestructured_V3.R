@@ -105,9 +105,10 @@ vfunc=function(p,k, maturity, v){
 
 calcImplDensity <- function(date, term) {
   var<--1
-  valid = FALSE
-  while(!isTRUE(valid) || var < 0) {
-    
+  
+  while(var < 0) {
+    #date<-"2006-01-31"
+    #term<-12
     #Table of options that are used to fit the SVI curve (i.e. all options that match a given t and T (but have different Strikes))
     optionsToFit<-raw[raw$ValuationDate == date, ]
     optionsToFit<-optionsToFit[optionsToFit$Term == term, ]
@@ -130,7 +131,7 @@ calcImplDensity <- function(date, term) {
     }
     
     #Then write the optimization function applied to vfunc
-    outDEoptim <- DEoptim(func, l, u, DEoptim.control(VTR = 1e-4, itermax =  1e4))
+    outDEoptim <- DEoptim(func, l, u, DEoptim.control(VTR = 1e-4, itermax =  2e4))
     summary(outDEoptim)
     
     #The SVI curve. Note:k is the log moneyness, not the strike
@@ -150,37 +151,30 @@ calcImplDensity <- function(date, term) {
     
     integral = tryCatch(integrate(implDensity, lower = 0.5 + 1, upper = 10000), error = function(e) e)  
     if(inherits(integral, "error")) next
-    if(integral$value - integral$abs.error - epsilon <= 1 && 1 <= integral$value + integral$abs.error + epsilon) {
-      valid<-TRUE
-      #TODO: Check this.
-      #use the implied density to get the implied log excess return density. 
-      #Problem: doing this leads to function that does not yield 1 when integrated form -Inf to Inf (implDensity does not do that either)
-      #Dirty trick: scale the resulting function so that the probabilities sum up to 1
-      #Problem 2: Integrating from -Inf to Inf leads to strange results because the function behaves strange from extrem values
-      #Even dirtier trick: only integrate from lIntegrBound to uIntegrBound. Chose this boundaries as the min/max of log moneyness we have data for (does that make sense?)
-      returnImplDensityUnscaled = function(ST) {
-        res<-log(ST/optionsToFit$Forward[1])*implDensity(ST)
-        return(res)
-      } 
-      #returnImplDensity = function(r) {return(returnImplDensityUnscaled(r)/integrate(returnImplDensityUnscaled, lower=lIntegrBound,upper=uIntegrBound)$value)}
-      
-      #curve(returnImplDensity, from=lIntegrBound, to=3, xlab="R", ylab="Implied Density")
-      #curve(returnImplDensityUnscaled, from=0.5, to=5000, xlab="R", ylab="Implied Log Returns")
-      
-      
-      #calculate the mean of the function by integration, and the var by using the usual formula
-      mean = tryCatch(integrate(function(x) {return(returnImplDensityUnscaled(x))}, 0.5, 10000), error = function(e) e)
-      if(inherits(mean, "error")) next
-      
-      varHelp = tryCatch(integrate(function(x) {return(returnImplDensityUnscaled(x)^2)}, 0.5, 10000), error = function(e) e)
-      if(inherits(varHelp, "error")) next
-      
-      mean = mean$value
-      var = varHelp$value/(term/12) - mean^2  
-    } else {
-      valid<-FALSE
-    }
     
+    implDensityScaled = function(K) {return(implDensity(K) / integral$value)}
+    
+    
+    returnImplDensity = function(ST) {
+      res<-log(ST/optionsToFit$Forward[1])*implDensity(ST)
+      return(res)
+    } 
+    #returnImplDensity = function(r) {return(returnImplDensityUnscaled(r)/integrate(returnImplDensityUnscaled, lower=lIntegrBound,upper=uIntegrBound)$value)}
+      
+    #curve(returnImplDensity, from=lIntegrBound, to=3, xlab="R", ylab="Implied Density")
+    #curve(returnImplDensityUnscaled, from=0.5, to=5000, xlab="R", ylab="Implied Log Returns")
+      
+      
+    #calculate the mean of the function by integration, and the var by using the usual formula
+    mean = tryCatch(integrate(function(x) {return(returnImplDensity(x))}, 0.5, 10000), error = function(e) e)
+    if(inherits(mean, "error")) next
+      
+    varHelp = tryCatch(integrate(function(x) {return(returnImplDensity(x)^2)}, 0.5, 10000), error = function(e) e)
+    if(inherits(varHelp, "error")) next
+    
+    mean = mean$value
+    var = varHelp$value/(term/12) - mean^2  
+  
   }
   return(c(mean, var))
 }
@@ -251,7 +245,7 @@ valid<-FALSE
 #Looping over different times to maturities. Idea: calculate the SVI curve (Q4) + RN densities (Q6) for different maturities
 #In the current version: choose t fix (here: 2006-01-31)
 #for(term in c(1, 3, 6, 12, 24, 36, 48, 60, 84, 120)) {
-for(term in c(120)) {
+for(term in c(1)) {
   res <- calcImplDensity("2006-01-31", term)
   meanvec<-c(meanvec, res[1])
   varvec<-c(varvec, res[2])
