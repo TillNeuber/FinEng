@@ -130,7 +130,7 @@ calcImplDensity <- function(date, term) {
     }
     
     #Then write the optimization function applied to vfunc
-    outDEoptim <- DEoptim(func, l, u, DEoptim.control(VTR = 1e-4, itermax =  2e4))
+    outDEoptim <- DEoptim(func, l, u, DEoptim.control(VTR = 0.5e-3, itermax =  1e4))
     summary(outDEoptim)
     
     #The SVI curve. Note:k is the log moneyness, not the strike
@@ -247,8 +247,7 @@ valid<-FALSE
 
 #Looping over different times to maturities. Idea: calculate the SVI curve (Q4) + RN densities (Q6) for different maturities
 #In the current version: choose t fix (here: 2006-01-31)
-#for(term in c(1, 3, 6, 12, 24, 36, 48, 60, 84, 120)) {
-for(term in c(1)) {
+for(term in c(1, 3, 6, 12, 24, 36, 48, 60, 84, 120)) {
   res <- calcImplDensity("2006-01-31", term)
   meanvec<-c(meanvec, res[1])
   varvec<-c(varvec, res[2])
@@ -323,7 +322,10 @@ for(term in c(1, 3, 6, 12, 24, 36, 48, 60, 84, 120)) {
   meanvec<-vector()
   varvec<-vector()
   for(date in t) {
+    print(term)
+    sink(tempfile())
     res <- calcImplDensity(date, term)
+    sink()
     meanvec<-c(meanvec, res[1])
     varvec<-c(varvec, res[2])
   }
@@ -343,20 +345,44 @@ summary(pz)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% coefficients for Term 1  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-T2 = (kappa - rho*sigma1 + E^(kappa*(t - T))*(rho*sigma1 + kappa*(-1 + rho*sigma1*(-t + T))))/kappa^2
+T2 = (kappa - rho*sigma1 + exp(kappa*(t - T))*(rho*sigma1 + kappa*(-1 + rho*sigma1*(-t + T))))/kappa^2
 
-T3 = -(((-1 + E^(kappa*(t - T)))*rho*sigma1 + kappa*(kappa - rho*sigma1)*(t - T))/kappa^2)
+T3 = -(((-1 + exp(kappa*(t - T)))*rho*sigma1 + kappa*(kappa - rho*sigma1)*(t - T))/kappa^2)
 
-T4 = (E^(kappa*T)*(eta - kappa)^2*(kappa - rho*sigma1) + E^(eta*t - eta*T + kappa*T)*kappa^2*(eta - kappa + rho*sigma1) + E^(kappa*t)*eta*(kappa*(-eta + kappa) + rho*sigma1*(eta + kappa^2*(t - T) + kappa*(-2 - eta*t + eta*T))))/(E^(kappa*T)*eta*(eta - kappa)^2*kappa)
+T4 = (exp(kappa*T)*(eta - kappa)^2*(kappa - rho*sigma1) + exp(eta*t - eta*T + kappa*T)*kappa^2*(eta - kappa + rho*sigma1) + exp(kappa*t)*eta*(kappa*(-eta + kappa) + rho*sigma1*(eta + kappa^2*(t - T) + kappa*(-2 - eta*t + eta*T))))/(exp(kappa*T)*eta*(eta - kappa)^2*kappa)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% (non-zero) coefficients for Term 2   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Ttilde2 = (sigma1^2*(-E^(2*kappa*t) + E^(2*kappa*T) + 2*E^(kappa*(t + T))*kappa*(t - T)))/(2*E^(2*kappa*T)*kappa^3)
+Ttilde2 = (sigma1^2*(-exp(2*kappa*t) + exp(2*kappa*T) + 2*exp(kappa*(t + T))*kappa*(t - T)))/(2*exp(2*kappa*T)*kappa^3)
 
-Ttilde3 = -((3 - 4*E^(eta*(t - T)) + E^(2*eta*(t - T)))*kappa^6*sigma2^2 + eta*kappa^5*sigma2^2*(-1 + E^(2*eta*(t - T)) + 2*kappa*t - 2*kappa*T) + eta^6*sigma1^2*(3 - 4*E^(kappa*(t - T)) + E^(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) - eta^5*kappa*sigma1^2*(3 - 4*E^(kappa*(t - T)) + E^(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) - eta^4*kappa^2*(sigma1 - sigma2)*(sigma1 + sigma2)*(3 - 4*E^(kappa*(t - T)) + E^(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) - 2*eta^2*kappa^4*sigma2^2*(2 - 2*(E^(eta*(t - T)) + E^(kappa*(t - T)) - E^((eta + kappa)*(t - T))) + kappa*t - kappa*T) + eta^3*kappa^3*(sigma1^2*(3 - 4*E^(kappa*(t - T)) + E^(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) + sigma2^2*(-1 + E^(2*kappa*(t - T)) - 2*kappa*t + 2*kappa*T)))/(4*eta^3*(eta - kappa)^2*kappa^3*(eta + kappa))
+Ttilde3 = -((3 - 4*exp(eta*(t - T)) + exp(2*eta*(t - T)))*kappa^6*sigma2^2 + eta*kappa^5*sigma2^2*(-1 + exp(2*eta*(t - T)) + 2*kappa*t - 2*kappa*T) + eta^6*sigma1^2*(3 - 4*exp(kappa*(t - T)) + exp(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) - eta^5*kappa*sigma1^2*(3 - 4*exp(kappa*(t - T)) + exp(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) - eta^4*kappa^2*(sigma1 - sigma2)*(sigma1 + sigma2)*(3 - 4*exp(kappa*(t - T)) + exp(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) - 2*eta^2*kappa^4*sigma2^2*(2 - 2*(exp(eta*(t - T)) + exp(kappa*(t - T)) - exp((eta + kappa)*(t - T))) + kappa*t - kappa*T) + eta^3*kappa^3*(sigma1^2*(3 - 4*exp(kappa*(t - T)) + exp(2*kappa*(t - T)) + 2*kappa*t - 2*kappa*T) + sigma2^2*(-1 + exp(2*kappa*(t - T)) - 2*kappa*t + 2*kappa*T)))/(4*eta^3*(eta - kappa)^2*kappa^3*(eta + kappa))
 
-Ttilde4 = (E^(-2*eta*t - 3*kappa*t - 7*eta*T - 6*kappa*T)*(2*E^(3*eta*t + 4*kappa*t + 6*eta*T + 5*kappa*T)*eta^2*(eta - 2*kappa)*kappa^2*sigma2^2 - E^(4*eta*t + 3*kappa*t + 5*eta*T + 6*kappa*T)*(eta - 2*kappa)*kappa^4*sigma2^2 - E^(2*eta*t + 5*kappa*t + 7*eta*T + 4*kappa*T)*eta^3*((eta - kappa)^2*sigma1^2 - kappa^2*sigma2^2) + E^(2*eta*t + 3*kappa*t + 7*eta*T + 6*kappa*T)*(eta - 2*kappa)*(eta - kappa)^2*(eta^2*sigma1^2 + kappa^2*sigma2^2) + 2*E^(2*eta*t + 4*kappa*t + 7*eta*T + 5*kappa*T)*eta^2*(eta - 2*kappa)*kappa*(-(kappa*sigma2^2) + eta*sigma1^2*(1 + (eta - kappa)*(t - T))) - 2*E^(3*(eta + kappa)*(t + 2*T))*eta*kappa^2*(-(eta*kappa*sigma1^2) + sigma2^2*(eta^2 + 2*kappa^3*(t - T) + eta*kappa*(-2 + eta*t - eta*T) + kappa^2*(2 - 3*eta*t + 3*eta*T)))))/(2*eta^3*(eta - 2*kappa)*(eta - kappa)^2*kappa^2)
+Ttilde4 = (exp(-2*eta*t - 3*kappa*t - 7*eta*T - 6*kappa*T)*(2*exp(3*eta*t + 4*kappa*t + 6*eta*T + 5*kappa*T)*eta^2*(eta - 2*kappa)*kappa^2*sigma2^2 - exp(4*eta*t + 3*kappa*t + 5*eta*T + 6*kappa*T)*(eta - 2*kappa)*kappa^4*sigma2^2 - exp(2*eta*t + 5*kappa*t + 7*eta*T + 4*kappa*T)*eta^3*((eta - kappa)^2*sigma1^2 - kappa^2*sigma2^2) + exp(2*eta*t + 3*kappa*t + 7*eta*T + 6*kappa*T)*(eta - 2*kappa)*(eta - kappa)^2*(eta^2*sigma1^2 + kappa^2*sigma2^2) + 2*exp(2*eta*t + 4*kappa*t + 7*eta*T + 5*kappa*T)*eta^2*(eta - 2*kappa)*kappa*(-(kappa*sigma2^2) + eta*sigma1^2*(1 + (eta - kappa)*(t - T))) - 2*exp(3*(eta + kappa)*(t + 2*T))*eta*kappa^2*(-(eta*kappa*sigma1^2) + sigma2^2*(eta^2 + 2*kappa^3*(t - T) + eta*kappa*(-2 + eta*t - eta*T) + kappa^2*(2 - 3*eta*t + 3*eta*T)))))/(2*eta^3*(eta - 2*kappa)*(eta - kappa)^2*kappa^2)
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Derivatives %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+TSigmaSquared = T2 + 0.5*Ttilde2
+TThetaBar = T3 + 0.5*Ttilde3
+TTheta = T4 + 0.5*Ttilde4
 
+Et = (sigma^2 - thetaBar)*TSigmaSquared + thetaBar*TThetaBar + (theta - thetaBar)*TTheta
+
+################  Q16  ################  
+
+# use Milstein scheme to disretize SDE for theta
+for (i in 2:(n+1)){
+  theta[,i] = (sqrt(theta[,i-1]) + sigma2/2 * sqrt(Delta) * Z3[,i-1])^2 
+  - eta * (theta[,i-1] - thetabar) * Delta - sigma2^2/4 * Delta
+}
+
+# use Milstein scheme to disretize SDE for v
+for (i in 2:(n+1)){
+  v[,i] = (sqrt(v[,i-1]) + sigma1/2 * sqrt(Delta) * Z2[,i-1])^2 
+  - kappa * (v[,i-1] - theta[,i-1]) * Delta - sigma1^2/4 * Delta
+}
+
+# create return time series using simple discretization of SDE
+for (i in 2:(n+1)){
+  x[,i] = x[,i-1] - v[,i-1]/2 * Delta + sqrt(Delta * v[,i-1]) * Z1[,i-1]
+}
