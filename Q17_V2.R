@@ -1,3 +1,5 @@
+################  CONSTANT DECLARATION, LOAD PACKAGES, LOAD DATA  ################  
+
 # model assumptions
 #should we replace with something?
 kappa=1 # rate of reversion to "current target variance theta(t)"
@@ -24,20 +26,19 @@ F=S*(1+Rf)^(months/12)
 
 iter=5000
 allS=rep(1,months)
-simulatedReturn = rep(1,iter)
-simulatedVol = rep(1,iter)
 dt=1/12 
 
-### Calculation
-for (i in 1:iter) {
-  lnS=log(S)
-  St=S
-  Vt<-V
-  #not sure it is the right inizialization
-  #I made a new variable TT to prevent 
-  thetaT<-thetaConst
-  TT<-thetaT
-  
+################  Utility Functions  ################  
+
+average <- function(list) {
+  sum <- 0
+  for (i in 1:length(list)) {
+    sum = sum + list[i]
+  }
+  return(sum/length(list))
+}
+
+monteCarlo <- function() {     
   for (j in 2:months) {
     
     #brownian of stock
@@ -59,9 +60,42 @@ for (i in 1:iter) {
     if(TT<0) TT=-TT
     thetaT=TT
   }
-  simulatedReturn[i] = log(St/F)
-  simulatedVol[i] = Vt
+  return(c(log(St/F), Vt))
+}  
+
+################  Q17  ################  
+
+simulatedReturn = rep(1,iter)
+simulatedVol = rep(1,iter)
+
+### Calculation
+for (i in 1:iter) {
+  lnS=log(S)
+  St=S
+  Vt<-V
+  #not sure it is the right inizialization
+  #I made a new variable TT to prevent 
+  thetaT<-thetaConst
+  TT<-thetaT  
+  res <- monteCarlo()
+  simulatedReturn[i] = res[1]
+  simulatedVol[i] = res[2]
 }
+
+mean <- average(simulatedReturn)
+vol <- average(simulatedVol)
+
+################  Q18  ################  
+
+sortedReturn <- sort(simulatedReturn)
+return1PercQuantile <- sortedReturn[round(iter*0.01, digits = 0)]
+return5PercQuantile <- sortedReturn[round(iter*0.05, digits = 0)]
+
+sortedVol <- sort(simulatedVol)
+vol1PercQuantile <- sortedVol[round(iter*0.01, digits = 0)]
+vol5PercQuantile <- sortedVol[round(iter*0.05, digits = 0)]
+
+
 
 ####### Testcode ######
 
