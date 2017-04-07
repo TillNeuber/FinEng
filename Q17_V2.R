@@ -24,7 +24,6 @@ F=S*(1+Rf)^(months/12)
 # Initialize variables
 #dt is monthly
 
-iter=5000
 allS=rep(1,months)
 dt=1/12 
 
@@ -38,60 +37,63 @@ average <- function(list) {
   return(sum/length(list))
 }
 
-monteCarlo <- function() {     
-  for (j in 2:months) {
+monteCarlo <- function(iter) {  
+  simulatedReturn = rep(1,iter)
+  simulatedVol = rep(1,iter)
+  for (i in 1:iter) {
+    lnS=log(S)
+    St=S
+    Vt<-V
+    #not sure it is the right inizialization
+    #I made a new variable TT to prevent 
+    thetaT<-thetaConst
+    TT<-thetaT  
+   
+    for (j in 2:months) {
+      
+      #brownian of stock
+      BrownS=qnorm(runif(1,0,1),0,1)
+      #Brownian of variance
+      BrownV=rho*BrownS+sqrt(1-rho^2)*qnorm(runif(1,0,1),0,1)
+      #brownian of theta
+      BrownT=sigma2*qnorm(runif(1,0,1),0,1)
+      
+      lnS=lnS+(Rf-Div-0.5*Vt)*dt+sqrt(Vt)*BrownS
+      St=exp(lnS)
+      allS[j]=St
+      
+      V=V+kappa*(thetaT-Vt)*dt+sigma1*sqrt(Vt)*BrownV
+      if(V<0) V=-V
+      Vt=V
+      
+      TT=TT+eta*(thetaConst-TT)*dt+BrownT*sqrt(TT)
+      if(TT<0) TT=-TT
+      thetaT=TT
+    }
     
-    #brownian of stock
-    BrownS=qnorm(runif(1,0,1),0,1)
-    #Brownian of variance
-    BrownV=rho*BrownS+sqrt(1-rho^2)*qnorm(runif(1,0,1),0,1)
-    #brownian of theta
-    BrownT=sigma2*qnorm(runif(1,0,1),0,1)
-    
-    lnS=lnS+(Rf-Div-0.5*Vt)*dt+sqrt(Vt)*BrownS
-    St=exp(lnS)
-    allS[j]=St
-    
-    V=V+kappa*(thetaT-Vt)*dt+sigma1*sqrt(Vt)*BrownV
-    if(V<0) V=-V
-    Vt=V
-    
-    TT=TT+eta*(thetaConst-TT)*dt+BrownT*sqrt(TT)
-    if(TT<0) TT=-TT
-    thetaT=TT
+    simulatedReturn[i] = log(St/F)
+    simulatedVol[i] = Vt
   }
-  return(c(log(St/F), Vt))
+  res <- data.frame(simulatedReturn, simulatedVol)
+  return(res)
 }  
 
 ################  Q17  ################  
 
-simulatedReturn = rep(1,iter)
-simulatedVol = rep(1,iter)
+res <- monteCarlo(5000)
+returnSeries <- res$simulatedReturn
+volSeries <- res$simulatedVol
 
-### Calculation
-for (i in 1:iter) {
-  lnS=log(S)
-  St=S
-  Vt<-V
-  #not sure it is the right inizialization
-  #I made a new variable TT to prevent 
-  thetaT<-thetaConst
-  TT<-thetaT  
-  res <- monteCarlo()
-  simulatedReturn[i] = res[1]
-  simulatedVol[i] = res[2]
-}
-
-mean <- average(simulatedReturn)
-vol <- average(simulatedVol)
+mean <- average(returnSeries)
+vol <- average(volSeries)
 
 ################  Q18  ################  
 
-sortedReturn <- sort(simulatedReturn)
+sortedReturn <- sort(returnSeries)
 return1PercQuantile <- sortedReturn[round(iter*0.01, digits = 0)]
 return5PercQuantile <- sortedReturn[round(iter*0.05, digits = 0)]
 
-sortedVol <- sort(simulatedVol)
+sortedVol <- sort(volSeries)
 vol1PercQuantile <- sortedVol[round(iter*0.01, digits = 0)]
 vol5PercQuantile <- sortedVol[round(iter*0.05, digits = 0)]
 
