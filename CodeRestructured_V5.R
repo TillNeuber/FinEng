@@ -264,6 +264,37 @@ monteCarlo <- function(date, term, iter) {
   return(res)
 }  
 
+plotMatrix <- function(xvec, matrix, xlab, ylab, maintitle, subtitle) { 
+  #determine min and max for yaxis
+  min <- matrix[1,1]
+  max <- matrix[1,1]
+  
+  for (i in 1:nrow(matrix)) {
+    for (j in 1:ncol(matrix)) {
+      if (matrix[i,j] > max) {max = matrix[i,j]}
+      if (matrix[i,j] < min) {min = matrix[i,j]}
+    }
+  }
+  
+  if (max >= 0) {max = max * 1.05} else {max = max * 0.95}
+  if (min >= 0) {min = min * 0.95} else {min = min * 1.05}
+  
+  if (missing(maintitle)) {
+    plot(xvec, matrix[1, ], type = "n", xlab = xlab, ylab = ylab, ylim = c(min, max))
+    
+  } else if (missing(subtitle)) {
+    plot(xvec, matrix[1, ], type = "n", xlab = xlab, ylab = ylab, ylim = c(min, max), main = maintitle)
+    
+  } else {
+    plot(xvec, matrix[1, ], type = "n", xlab = xlab, ylab = ylab, ylim = c(min, max), main = maintitle, sub = subtitle)
+  }
+
+  for (i in 1:nrow(matrix)) {
+    lw <- loess(matrix[i, ] ~ xvec)
+    #Alpha = 1: dark
+    lines(xvec, lw$fitted, col = rgb(0,0,0, alpha = (i / nrow(matrix))), lwd = 2)
+  }
+}
 
 ################  Q3  ################  
 
@@ -423,7 +454,7 @@ pz <- prcomp(varmatrix, tol = 0.1,na.rm=T)
 summary(pz)
 
 
-################  Q17  ################  
+################  Q17 + Q18 ################  
 
 t<-c(unique(raw$ValuationDate))
 terms <- c(unique(raw$Term))
@@ -434,44 +465,6 @@ nsims <- 1000
 meanTermStructureSeries <- matrix(ncol = length((terms)))
 volTermStructureSeries <- matrix(ncol = length((terms)))
 
-for(dateIndex in 1:length(t)) {
-  date <- t[dateIndex]
-  meanTermStructure <- vector()
-  volTermStructure <- vector()
-  termvec <- vector()
-  print(paste(dateIndex,"out of", length(t)))
-  
-  for(term in terms) {
-    res <- monteCarlo(date, term, nsims)
-    meanTermStructure <- c(meanTermStructure, average(res$simulatedReturn))
-    volTermStructure <- c(volTermStructure, average(res$simulatedVol))
-    termvec <- c(termvec, term)
-  }
-  
-  meanTermStructureSeries <- rbind(meanTermStructureSeries, meanTermStructure)
-  volTermStructureSeries <- rbind(volTermStructureSeries, volTermStructure)
-  
-}
-
-#Delete first NA row
-meanTermStructureSeries <- meanTermStructureSeries[2:nrow(meanTermStructureSeries),]
-volTermStructureSeries <- volTermStructureSeries[2:nrow(volTermStructureSeries),]
-
-
-plot(termvec, meanTermStructureSeries[1, ], type = "n", xlab = "Time to Maturity", ylab = "Mean Log Holding Period Excess Return")
-
-for (i in 1:nrow(meanTermStructureSeries)) {
-  lw <- loess(meanTermStructureSeries[i, ] ~ termvec)
-  #points(termvec, meanTermStructureSeries[i, ])
-  #myline.fit <- lm(meanTermStructureSeries[i, ] ~ termvec)
-  #abline(myline.fit)
-  lines(termvec, lw$fitted, col = rgb(0,0,0, alpha = (i / nrow(meanTermStructureSeries))), lwd = 2)
-  #lines(termvec, lw$fitted,col=rgb(1 - (i / nrow(meanTermStructureSeries)),0,(i / nrow(meanTermStructureSeries))))
-}
-
-
-################  Q18  ################  
-
 mean1PercQuantTermStructureSeries <- matrix(ncol = length((terms)))
 vol1PercQuantTermStructureSeries <- matrix(ncol = length((terms)))
 
@@ -481,17 +474,23 @@ vol5PercQuantTermStructureSeries <- matrix(ncol = length((terms)))
 for(dateIndex in 1:length(t)) {
   date <- t[dateIndex]
   
+  meanTermStructure <- vector()
+  volTermStructure <- vector()
+  
   mean1PercTermStructure <- vector()
   mean5PercTermStructure <- vector()
   
   vol1PercTermStructure <- vector()
   vol5PercTermStructure <- vector()
   
-  volTermStructure <- vector()
   termvec <- vector()
+  print(paste(dateIndex,"out of", length(t)))
   
   for(term in terms) {
     res <- monteCarlo(date, term, nsims)
+    
+    meanTermStructure <- c(meanTermStructure, average(res$simulatedReturn))
+    volTermStructure <- c(volTermStructure, average(res$simulatedVol))
     
     sortedReturn <- sort(res$simulatedReturn)
     return1PercQuantile <- sortedReturn[round(nsims*0.01, digits = 0)]
@@ -510,28 +509,31 @@ for(dateIndex in 1:length(t)) {
     termvec <- c(termvec, term)
   }
   
+  meanTermStructureSeries <- rbind(meanTermStructureSeries, meanTermStructure)
+  volTermStructureSeries <- rbind(volTermStructureSeries, volTermStructure)
+ 
   mean1PercQuantTermStructureSeries <- rbind(mean1PercQuantTermStructureSeries, mean1PercTermStructure)
   vol1PercQuantTermStructureSeries <- rbind(vol1PercQuantTermStructureSeries, vol1PercTermStructure)
   
   mean5PercQuantTermStructureSeries <- rbind(mean5PercQuantTermStructureSeries, mean5PercTermStructure)
-  vol5PercQuantTermStructureSeries <- rbind(vol5PercQuantTermStructureSeries, vol5PercTermStructure)
+  vol5PercQuantTermStructureSeries <- rbind(vol5PercQuantTermStructureSeries, vol5PercTermStructure) 
 }
 
-
 #Delete first NA row
+meanTermStructureSeries <- meanTermStructureSeries[2:nrow(meanTermStructureSeries),]
+volTermStructureSeries <- volTermStructureSeries[2:nrow(volTermStructureSeries),]
 mean1PercQuantTermStructureSeries <- mean1PercQuantTermStructureSeries[2:nrow(mean1PercQuantTermStructureSeries),]
 vol1PercQuantTermStructureSeries <- vol1PercQuantTermStructureSeries[2:nrow(vol1PercQuantTermStructureSeries),]
 mean5PercQuantTermStructureSeries <- mean5PercQuantTermStructureSeries[2:nrow(mean5PercQuantTermStructureSeries),]
 vol5PercQuantTermStructureSeries <- vol5PercQuantTermStructureSeries[2:nrow(vol5PercQuantTermStructureSeries),]
 
+#Plot for Q17
+#TODO: add empirical data
+plotMatrix(termvec, meanTermStructureSeries, "Time to Maturity", "Mean Log Holding Period Excess Return", )
 
 
-
-
-
-
-
-
+#Plot for Q18: 1% Quantile
+plotMatrix(termvec, mean1PercQuantTermStructureSeries, "Time to Maturity", "Mean Log Holding Period Excess Return", maintitle = "Question 18 - 0.01 Quantile", subtitle = "(More recent term structures are depicted darker)")
 
 
 
