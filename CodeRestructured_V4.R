@@ -426,6 +426,7 @@ summary(pz)
 
 t<-c(unique(raw$ValuationDate))
 terms <- c(unique(raw$Term))
+nsims <- 100
 
 #meanTermStructureSeries <- matrix(nrow = length(t), ncol = length(terms))
 #volTermStructureSeries <- matrix(nrow = length(t), ncol = length(terms))
@@ -439,7 +440,7 @@ for(dateIndex in 1:length(t)) {
   termvec <- vector()
   
   for(term in terms) {
-    res <- monteCarlo(date, term, 5)
+    res <- monteCarlo(date, term, nsims)
     meanTermStructure <- c(meanTermStructure, average(res$simulatedReturn))
     volTermStructure <- c(volTermStructure, average(res$simulatedVol))
     termvec <- c(termvec, term)
@@ -480,14 +481,33 @@ vol5PercQuantTermStructureSeries <- matrix(ncol = length((terms)))
 
 for(dateIndex in 1:length(t)) {
   date <- t[dateIndex]
-  meanTermStructure <- vector()
+  
+  mean1PercTermStructure <- vector()
+  mean5PercTermStructure <- vector()
+  
+  vol1PercTermStructure <- vector()
+  vol5PercTermStructure <- vector()
+  
   volTermStructure <- vector()
   termvec <- vector()
   
   for(term in terms) {
-    res <- monteCarlo(date, term, 5)
-    meanTermStructure <- c(meanTermStructure, average(res$simulatedReturn))
-    volTermStructure <- c(volTermStructure, average(res$simulatedVol))
+    res <- monteCarlo(date, term, nsims)
+    
+    sortedReturn <- sort(res$simulatedReturn)
+    return1PercQuantile <- sortedReturn[round(nsims*0.01, digits = 0)]
+    return5PercQuantile <- sortedReturn[round(nsims*0.05, digits = 0)]
+    
+    sortedVol <- sort(res$simulatedVol)
+    vol1PercQuantile <- sortedVol[round(nsims*0.01, digits = 0)]
+    vol5PercQuantile <- sortedVol[round(nsims*0.05, digits = 0)]
+    
+    mean1PercTermStructure <- c(mean1PercTermStructure, return1PercQuantile)
+    mean5PercTermStructure <- c(mean5PercTermStructure, return5PercQuantile)
+    
+    vol1PercTermStructure <- c(vol1PercTermStructure, vol1PercQuantile)
+    vol5PercTermStructure <- c(vol5PercTermStructure, vol5PercQuantile)
+    
     termvec <- c(termvec, term)
   }
   
@@ -496,20 +516,14 @@ for(dateIndex in 1:length(t)) {
   
   mean5PercQuantTermStructureSeries <- rbind(mean5PercQuantTermStructureSeries, mean5PercTermStructure)
   vol5PercQuantTermStructureSeries <- rbind(vol5PercQuantTermStructureSeries, vol5PercTermStructure)
-  
 }
 
 
-
-sortedReturn <- sort(returnSeries)
-return1PercQuantile <- sortedReturn[round(iter*0.01, digits = 0)]
-return5PercQuantile <- sortedReturn[round(iter*0.05, digits = 0)]
-
-sortedVol <- sort(volSeries)
-vol1PercQuantile <- sortedVol[round(iter*0.01, digits = 0)]
-vol5PercQuantile <- sortedVol[round(iter*0.05, digits = 0)]
-
-
+#Delete first NA row
+mean1PercQuantTermStructureSeries <- mean1PercQuantTermStructureSeries[2:nrow(mean1PercQuantTermStructureSeries),]
+vol1PercQuantTermStructureSeries <- vol1PercQuantTermStructureSeries[2:nrow(vol1PercQuantTermStructureSeries),]
+mean5PercQuantTermStructureSeries <- mean5PercQuantTermStructureSeries[2:nrow(mean5PercQuantTermStructureSeries),]
+vol5PercQuantTermStructureSeries <- vol5PercQuantTermStructureSeries[2:nrow(vol5PercQuantTermStructureSeries),]
 
 
 
