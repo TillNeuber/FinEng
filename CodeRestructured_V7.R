@@ -2,6 +2,7 @@
 
 OUTPUT_PLOTS <- FALSE
 
+library(scatterplot3d)
 library("DEoptim")
 library("plotly")
 library("reshape2")
@@ -140,8 +141,11 @@ calcImplDensity <- function(date, term) {
     
     #Vectors used for the implied vol surface plot
     moneynessPlotVec <- c()
-    impliedVolPlotvec <- c()
+    impliedVolPlotVec <- c()
     termPlotVec <- c()
+    
+    moneynessLogPlotVec <- c()
+    impliedLogVolPlotVec <- c()
     
     #Note: The SVI interpolation is non-deterministic because the optimization routine is random - results therefore vary
     var<--1
@@ -162,6 +166,18 @@ calcImplDensity <- function(date, term) {
     #The SVI curve. Note:k is the log moneyness, not the strike
     bestFit = function(k) {implVol(outDEoptim$optim$bestmem, k, optionsToFit$TTM[1])}
     bestFitLog = function(k) {bestFit(log(k))} 
+    
+    #Code for Implied Vol plot
+    for(i in 1:3000) {
+      r <- (i/3000)*4 - 2
+      moneynessPlotVec <- c(moneynessPlotVec, r)
+      impliedVolPlotVec <- c(impliedVolPlotVec, bestFit(r))
+      termPlotVec <- c(termPlotVec, term)
+      
+      r2 <- (i/3000)*(exp(2) - exp(-2)) + exp(-2)
+      moneynessLogPlotVec <- c(moneynessLogPlotVec, r2)
+      impliedLogVolPlotVec <- c(impliedLogVolPlotVec, bestFitLog(r2))
+    }
     
     #Use this to plot the SVI curve
     if (isTRUE(OUTPUT_PLOTS)) {
@@ -246,8 +262,10 @@ calcImplDensity <- function(date, term) {
     mean = mean$value
     var = (varHelp$value - mean^2)/(term/12)  
   
+    res <- data.frame(mean, var, moneynessPlotVec, impliedVolPlotVec, termPlotVec, moneynessLogPlotVec, impliedLogVolPlotVec)
+    
   }
-  return(c(mean, var))
+  return(res)
 }
 
 average <- function(list) {
@@ -408,6 +426,14 @@ Sys.setenv("plotly_api_key"="7CknaAatVziORktIj116")
 
 ################  Q4+6+9  ################  
 
+#Vectors for Q4 plot
+moneynessPlotVec <- c()
+impliedVolPlotVec <- c()
+termPlotVec <- c()
+
+moneynessLogPlotVec <- c()
+impliedLogVolPlotVec <- c()
+
 #Choose 4 dates for Q9: 2006-01-31, 2007-01-31, 2008-01-31, 2009-01-30
 #These vectors are used for Q9:
 # - meanvec is a vector of means of log excess returns that were calculated in Q6 
@@ -432,23 +458,38 @@ valid<-FALSE
 #Note: annualisation is done in calcImplDensity function
 for(term in c(1, 3, 6, 12, 24, 36, 48, 60, 84, 120)) {
   res <- calcImplDensity("2006-01-31", term)
-  mean06vec<-c(mean06vec, res[1])
-  var06vec<-c(var06vec, res[2])
+  mean06vec<-c(mean06vec, res$mean)
+  var06vec<-c(var06vec, res$var)
   
-  res <- calcImplDensity("2007-01-31", term)
-  mean07vec<-c(mean07vec, res[1])
-  var07vec<-c(var07vec, res[2])
+  moneynessPlotVec <- c(moneynessPlotVec, res$moneynessPlotVec)
+  impliedVolPlotVec <- c(impliedVolPlotVec, res$impliedVolPlotVec)
+  termPlotVec <- c(termPlotVec, res$termPlotVec)
   
-  res <- calcImplDensity("2008-01-31", term)
-  mean08vec<-c(mean08vec, res[1])
-  var08vec<-c(var08vec, res[2])
+  moneynessLogPlotVec <- c(moneynessLogPlotVec, res$moneynessLogPlotVec)
+  impliedLogVolPlotVec <- c(impliedLogVolPlotVec, res$impliedLogVolPlotVec)
   
-  res <- calcImplDensity("2009-01-30", term)
-  mean09vec<-c(mean09vec, res[1])
-  var09vec<-c(var09vec, res[2])
+  #res <- calcImplDensity("2007-01-31", term)
+  #mean07vec<-c(mean07vec, res$mean)
+  #var07vec<-c(var07vec, res$var)
   
-  termvec<-c(termvec, term)
+  #res <- calcImplDensity("2008-01-31", term)
+  #mean08vec<-c(mean08vec, res$mean)
+  #var08vec<-c(var08vec, res$var)
+  
+  #res <- calcImplDensity("2009-01-30", term)
+  #mean09vec<-c(mean09vec, res$mean)
+  #var09vec<-c(var09vec, res$var)
+  
+  #termvec<-c(termvec, term)
 }
+
+#Careful: LogPlotVecs do NOT give log moneyness - other way around!
+q4frame <- data.frame(termPlotVec, moneynessPlotVec, impliedVolPlotVec)
+scatterplot3d(q4frame, cex.symbols = 0.3, xlab = "Time to Maturity (months)", ylab = "Moneyness [log(K/F)]", zlab = "Implied Vol", main = "Implied Vols - 2006-01-31", highlight.3d = TRUE, box = FALSE)
+
+q4Logframe <- data.frame(termPlotVec, moneynessLogPlotVec, impliedLogVolPlotVec)
+scatterplot3d(q4Logframe, cex.symbols = 0.3, xlab = "Time to Maturity (months)", ylab = "Moneyness [K/F]", zlab = "Implied Vol", main = "Implied Vols - 2006-01-31", highlight.3d = TRUE, box = FALSE)
+
 
 q9frame<-data.frame(termvec, mean06vec, var06vec, mean07vec, var07vec, mean08vec, var08vec, mean09vec, var09vec)
 ggplot(q9frame, aes(termvec, y = value, color = variable)) +
@@ -507,8 +548,8 @@ for(date in t) {
   sink(tempfile())
   res <- calcImplDensity(date, 12)
   sink()
-  meanTTM12vec<-c(meanTTM12vec, res[1])
-  varTTM12vec<-c(varTTM12vec, res[2])
+  meanTTM12vec<-c(meanTTM12vec, res$mean)
+  varTTM12vec<-c(varTTM12vec, res$var)
 }
 
 varTTM12vecSCALED<-vector()
@@ -553,8 +594,8 @@ for(term in c(1, 3, 6, 12, 24, 36, 48, 60, 84, 120)) {
     sink(tempfile())
     res <- calcImplDensity(date, term)
     sink()
-    meanvec<-c(meanvec, res[1])
-    varvec<-c(varvec, res[2])
+    meanvec<-c(meanvec, res$mean)
+    varvec<-c(varvec, res$var)
   }
   varmatrix<-cbind(varmatrix, varvec)
 }
