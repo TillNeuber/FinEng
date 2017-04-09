@@ -239,7 +239,7 @@ calcImplDensity <- function(date, term) {
     if(inherits(varHelp, "error")) next
     
     mean = mean$value
-    var = varHelp$value/(term/12) - mean^2  
+    var = (varHelp$value - mean^2)/(term/12)  
   
   }
   return(c(mean, var))
@@ -408,14 +408,14 @@ Sys.setenv("plotly_api_key"="7CknaAatVziORktIj116")
 # - meanvec is a vector of means of log excess returns that were calculated in Q6 
 # - varvec is a vector of annualised var of log ex returns (needed for Q9)
 # - termvec is a vector of time to maturities in months
-meanvec06<-vector()
-varvec06<-vector()
-meanvec07<-vector()
-varvec07<-vector()
-meanvec08<-vector()
-varvec08<-vector()
-meanvec09<-vector()
-varvec09<-vector()
+mean06vec<-vector()
+var06vec<-vector()
+mean07vec<-vector()
+var07vec<-vector()
+mean08vec<-vector()
+var08vec<-vector()
+mean09vec<-vector()
+var09vec<-vector()
 termvec<-vector()
 
 #TODO: still needed?!
@@ -424,29 +424,48 @@ valid<-FALSE
 
 #Looping over different times to maturities. Idea: calculate the SVI curve (Q4) + RN densities (Q6) for different maturities
 #Choose t fix (here: 2006-01-31)
+#Note: annualisation is done in calcImplDensity function
 for(term in c(1, 3, 6, 12, 24, 36, 48, 60, 84, 120)) {
-#for(term in c(1)) {
   res <- calcImplDensity("2006-01-31", term)
-  mean06vec<-c(meanvec, res[1])
-  var06vec<-c(varvec, res[2])
+  mean06vec<-c(mean06vec, res[1])
+  var06vec<-c(var06vec, res[2])
   
   res <- calcImplDensity("2007-01-31", term)
-  mean07vec<-c(meanvec, res[1])
-  var07vec<-c(varvec, res[2])
+  mean07vec<-c(mean07vec, res[1])
+  var07vec<-c(var07vec, res[2])
   
   res <- calcImplDensity("2008-01-31", term)
-  mean08vec<-c(meanvec, res[1])
-  var08vec<-c(varvec, res[2])
+  mean08vec<-c(mean08vec, res[1])
+  var08vec<-c(var08vec, res[2])
   
   res <- calcImplDensity("2009-01-30", term)
-  mean09vec<-c(meanvec, res[1])
-  var09vec<-c(varvec, res[2])
+  mean09vec<-c(mean09vec, res[1])
+  var09vec<-c(var09vec, res[2])
   
   termvec<-c(termvec, term)
 }
 
-varframe<-data.frame(termvec, varvec)
-ggplot(varframe, aes(termvec,varvec)) + geom_point() + geom_smooth()
+q9frame<-data.frame(termvec, mean06vec, var06vec, mean07vec, var07vec, mean08vec, var08vec, mean09vec, var09vec)
+ggplot(q9frame, aes(termvec, y = value, color = variable)) +
+  xlab("Time to Maturity (months)") +
+  ylab("Value") +
+  geom_point(aes(y = mean06vec, col = "Returns 2006-01-31")) +
+  geom_point(aes(y = var06vec, col = "Vol 2006-01-31")) +
+  geom_point(aes(y = mean07vec, col = "Returns 2007-01-31")) +
+  geom_point(aes(y = var07vec, col = "Vol 2007-01-31")) +
+  geom_point(aes(y = mean08vec, col = "Returns 2008-01-31")) +
+  geom_point(aes(y = var08vec, col = "Vol 2008-01-31")) +
+  geom_point(aes(y = mean09vec, col = "Returns 2008-01-30")) +
+  geom_point(aes(y = var09vec, col = "Vol 2009-01-30")) +
+  geom_smooth(aes(y = mean06vec, col = "Returns 2006-01-31"), se = FALSE) +
+  geom_smooth(aes(y = var06vec, col = "Vol 2006-01-31"), se = FALSE) +
+  geom_smooth(aes(y = mean07vec, col = "Returns 2007-01-31"), se = FALSE) +
+  geom_smooth(aes(y = var07vec, col = "Vol 2007-01-31"), se = FALSE) +
+  geom_smooth(aes(y = mean08vec, col = "Returns 2008-01-31"), se = FALSE) +
+  geom_smooth(aes(y = var08vec, col = "Returns 2008-01-31"), se = FALSE) +
+  geom_smooth(aes(y = mean09vec, col = "Returns 2009-01-30"), se = FALSE) +
+  geom_smooth(aes(y = var09vec, col = "Returns 2008-01-30"), se = FALSE) 
+
 
 ################  Q11  ################  
 
